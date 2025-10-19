@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -9,7 +9,6 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
-// 使用别名避免命名冲突
 using WinForms = System.Windows.Forms;
 
 namespace Attack
@@ -36,11 +35,12 @@ namespace Attack
         private Border trackBackground;
         private PlaybackRecordManager recordManager;
         private string currentVideoPath;
+        private Button FullscreenSpeedButton;
 
         // 倍速选项
         private readonly string[] speedOptions = new[] { "0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x" };
         private readonly double[] speedValues = new[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
-        private int currentSpeedIndex = 2; // 默认1.0x
+        private int currentSpeedIndex = 2;
 
         public MainWindow()
         {
@@ -51,51 +51,44 @@ namespace Attack
 
         private void InitializePlayer()
         {
-            // 初始化进度计时器
+
+
+           FullscreenSpeedButton = new Button();
+           FullscreenSpeedButton.Content = speedOptions[currentSpeedIndex];
+
+
+            
             progressTimer = new DispatcherTimer();
             progressTimer.Interval = TimeSpan.FromMilliseconds(50);
             progressTimer.Tick += ProgressTimer_Tick;
 
-            // 初始化记忆播放保存计时器（每10秒保存一次）
+            
             memorySaveTimer = new DispatcherTimer();
             memorySaveTimer.Interval = TimeSpan.FromSeconds(10);
             memorySaveTimer.Tick += MemorySaveTimer_Tick;
 
-            // 初始化控制条隐藏计时器
+            
             controlsHideTimer = new DispatcherTimer();
             controlsHideTimer.Interval = TimeSpan.FromSeconds(3);
             controlsHideTimer.Tick += ControlsHideTimer_Tick;
 
-            // 设置初始音量
+            
             MediaPlayer.Volume = VolumeSlider.Value;
 
-            // 设置速度选项
+            
             SpeedComboBox.SelectedIndex = currentSpeedIndex;
 
-            // 初始化视频文件列表
+            
             videoFiles = new List<VideoFile>();
 
-            // 初始化播放记录管理器
+            
             recordManager = new PlaybackRecordManager();
 
-            // 恢复上次播放状态
+            
             RestoreLastPlaybackState();
         }
 
-        private void ControlsHideTimer_Tick(object sender, EventArgs e)
-        {
-            if (isVideoFullscreen && FullscreenControls.Opacity > 0)
-            {
-                // 全屏时3秒后隐藏控制条
-                var fadeOutAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    To = 0,
-                    Duration = TimeSpan.FromSeconds(0.5)
-                };
-                FullscreenControls.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
-            }
-            controlsHideTimer.Stop();
-        }
+
 
         private void VideoContainer_MouseMove(object sender, MouseEventArgs e)
         {
@@ -103,7 +96,7 @@ namespace Attack
             {
                 if (isVideoFullscreen)
                 {
-                    // 全屏时显示所有控制条
+                    
                     if (FullscreenControls.Opacity < 1)
                     {
                         var fadeInAnimation = new System.Windows.Media.Animation.DoubleAnimation
@@ -114,24 +107,26 @@ namespace Attack
                         FullscreenControls.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
                     }
 
-                    // 重置隐藏计时器
+                    
                     controlsHideTimer.Stop();
                     controlsHideTimer.Start();
                 }
-                else
-                {
-                    // 非全屏时显示播放控制按钮
-                    if (NormalPlaybackButtons.Opacity < 1)
-                    {
-                        var fadeInAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                        {
-                            To = 1,
-                            Duration = TimeSpan.FromSeconds(0.3)
-                        };
-                        NormalPlaybackButtons.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
-                    }
-                }
             }
+        }
+
+        private void ControlsHideTimer_Tick(object sender, EventArgs e)
+        {
+            if (isVideoFullscreen && FullscreenControls.Opacity > 0)
+            {
+                // 隐藏控制条和按钮
+                var fadeOutAnimation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    To = 0,
+                    Duration = TimeSpan.FromSeconds(0.5)
+                };
+                FullscreenControls.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+            }
+            controlsHideTimer.Stop();
         }
 
         private void FullscreenControls_MouseMove(object sender, MouseEventArgs e)
@@ -144,15 +139,15 @@ namespace Attack
 
         private void VideoContainer_MouseLeave(object sender, MouseEventArgs e)
         {
-            if (!isVideoFullscreen && NormalPlaybackButtons.Opacity > 0)
+            // 非全屏时不隐藏控制条，所以只处理全屏状态
+            if (isVideoFullscreen && FullscreenControls.Opacity > 0)
             {
-                // 非全屏时隐藏播放控制按钮
                 var fadeOutAnimation = new System.Windows.Media.Animation.DoubleAnimation
                 {
                     To = 0,
                     Duration = TimeSpan.FromSeconds(0.5)
                 };
-                NormalPlaybackButtons.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+                FullscreenControls.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
             }
         }
 
@@ -181,8 +176,7 @@ namespace Attack
 
         private void NormalProgressSlider_MouseLeave(object sender, MouseEventArgs e)
         {
-            HidePreviewDot(NormalProgressSlider);
-            // 原有的滑块隐藏逻辑
+            // 鼠标离开进度条时隐藏滑块
             var thumb = NormalProgressSlider.Template.FindName("Thumb", NormalProgressSlider) as Thumb;
             if (thumb != null && !thumb.IsMouseOver)
             {
@@ -202,8 +196,7 @@ namespace Attack
 
         private void FullscreenProgressSlider_MouseLeave(object sender, MouseEventArgs e)
         {
-            HidePreviewDot(FullscreenProgressSlider);
-            // 原有的滑块隐藏逻辑
+            // 鼠标离开进度条时隐藏滑块
             var thumb = FullscreenProgressSlider.Template.FindName("Thumb", FullscreenProgressSlider) as Thumb;
             if (thumb != null && !thumb.IsMouseOver)
             {
@@ -249,7 +242,7 @@ namespace Attack
 
                 isVideoFullscreen = true;
 
-                // 显示全屏控制条
+                // 显示控制条
                 var fadeInAnimation = new System.Windows.Media.Animation.DoubleAnimation
                 {
                     To = 1,
@@ -259,13 +252,6 @@ namespace Attack
 
                 // 启动隐藏计时器
                 controlsHideTimer.Start();
-
-                // 确保全屏进度条同步
-                if (MediaPlayer.NaturalDuration.HasTimeSpan)
-                {
-                    FullscreenProgressSlider.Value = MediaPlayer.Position.TotalSeconds;
-                    UpdateFullscreenTimeDisplay();
-                }
             }
             else
             {
@@ -286,23 +272,8 @@ namespace Attack
 
                 isVideoFullscreen = false;
 
-                // 隐藏播放控制按钮
-                var fadeOutAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    To = 0,
-                    Duration = TimeSpan.FromSeconds(0.5)
-                };
-                NormalPlaybackButtons.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
-
                 // 停止隐藏计时器
                 controlsHideTimer.Stop();
-
-                // 确保普通进度条同步
-                if (MediaPlayer.NaturalDuration.HasTimeSpan)
-                {
-                    NormalProgressSlider.Value = MediaPlayer.Position.TotalSeconds;
-                    UpdateNormalTimeDisplay();
-                }
             }
         }
 
@@ -359,6 +330,11 @@ namespace Attack
             }
         }
 
+        private void NormalSpeedButton_Click(object sender, RoutedEventArgs e)
+        {
+            CyclePlaybackSpeed();
+        }
+
         private void FullscreenSpeedButton_Click(object sender, RoutedEventArgs e)
         {
             CyclePlaybackSpeed();
@@ -374,7 +350,8 @@ namespace Attack
             // 设置播放速度
             MediaPlayer.SpeedRatio = speed;
 
-            // 更新按钮文本（只更新全屏按钮）
+            // 更新按钮文本
+            NormalSpeedButton.Content = speedText;
             FullscreenSpeedButton.Content = speedText;
 
             // 更新主控制面板的倍速选择
@@ -405,7 +382,65 @@ namespace Attack
             }
         }
 
-        // 删除重复的方法，只保留下面的实现
+        private void NormalProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            isDraggingProgress = true;
+            if (isPlaying)
+            {
+                MediaPlayer.Pause();
+            }
+        }
+
+        private void NormalProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            isDraggingProgress = false;
+            if (MediaPlayer.Source != null && isPlaying)
+            {
+                MediaPlayer.Play();
+            }
+
+            // 拖动结束后保存播放进度
+            if (!string.IsNullOrEmpty(currentVideoPath) && MediaPlayer.NaturalDuration.HasTimeSpan)
+            {
+                recordManager.UpdateRecord(currentVideoPath, MediaPlayer.Position.TotalSeconds);
+
+                // 同时更新播放状态
+                if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
+                {
+                    recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, MediaPlayer.Position.TotalSeconds);
+                }
+            }
+        }
+
+        private void FullscreenProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            isDraggingProgress = true;
+            if (isPlaying)
+            {
+                MediaPlayer.Pause();
+            }
+        }
+
+        private void FullscreenProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            isDraggingProgress = false;
+            if (MediaPlayer.Source != null && isPlaying)
+            {
+                MediaPlayer.Play();
+            }
+
+            // 拖动结束后保存播放进度
+            if (!string.IsNullOrEmpty(currentVideoPath) && MediaPlayer.NaturalDuration.HasTimeSpan)
+            {
+                recordManager.UpdateRecord(currentVideoPath, MediaPlayer.Position.TotalSeconds);
+
+                // 同时更新播放状态
+                if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
+                {
+                    recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, MediaPlayer.Position.TotalSeconds);
+                }
+            }
+        }
 
         private void UpdateNormalTimeDisplay()
         {
@@ -443,6 +478,7 @@ namespace Attack
             }
         }
 
+        // 以下为原有代码，保持不变
         private void RestoreLastPlaybackState()
         {
             try
@@ -498,10 +534,10 @@ namespace Attack
             }
         }
 
+        // 在窗口加载完成后获取进度条元素的引用
         protected override void OnContentRendered(EventArgs e)
         {
             base.OnContentRendered(e);
-
             // 获取进度条背景元素的引用
             progressBackground = ProgressSlider.Template.FindName("ProgressBackground", ProgressSlider) as Border;
             progressThumb = ProgressSlider.Template.FindName("Thumb", ProgressSlider) as Thumb;
@@ -565,6 +601,7 @@ namespace Attack
             }
         }
 
+        // 点击进度条轨道跳转
         private void TrackBackground_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (MediaPlayer.NaturalDuration.HasTimeSpan)
@@ -592,6 +629,7 @@ namespace Attack
             }
         }
 
+        // 更新进度条显示
         private void UpdateProgressDisplay()
         {
             if (progressBackground != null && progressThumb != null && MediaPlayer.NaturalDuration.HasTimeSpan)
@@ -613,6 +651,7 @@ namespace Attack
             }
         }
 
+        // 更新滑块位置
         private void UpdateThumbPosition(double progressPercentage)
         {
             if (progressThumb != null)
@@ -629,205 +668,13 @@ namespace Attack
         {
             if (!isDraggingProgress && MediaPlayer.NaturalDuration.HasTimeSpan)
             {
-                double currentPosition = MediaPlayer.Position.TotalSeconds;
-
-                // 确保所有进度条都同步更新
-                ProgressSlider.Value = currentPosition;
-                NormalProgressSlider.Value = currentPosition;
-                FullscreenProgressSlider.Value = currentPosition;
-
+                ProgressSlider.Value = MediaPlayer.Position.TotalSeconds;
+                NormalProgressSlider.Value = MediaPlayer.Position.TotalSeconds;
+                FullscreenProgressSlider.Value = MediaPlayer.Position.TotalSeconds;
                 UpdateTimeDisplay();
                 UpdateNormalTimeDisplay();
                 UpdateFullscreenTimeDisplay();
-                UpdateProgressDisplay();
-            }
-        }
-
-        // 添加进度条鼠标移动事件处理
-        private void ProgressSlider_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                ShowPreviewDot(sender as Slider, e);
-            }
-        }
-
-        private void NormalProgressSlider_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                ShowPreviewDot(sender as Slider, e);
-            }
-        }
-
-        private void FullscreenProgressSlider_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                ShowPreviewDot(sender as Slider, e);
-            }
-        }
-
-        // 显示预览点的方法
-        private void ShowPreviewDot(Slider slider, MouseEventArgs e)
-        {
-            if (slider == null || !MediaPlayer.NaturalDuration.HasTimeSpan) return;
-
-            var dot = slider.Template.FindName("PreviewDot", slider) as Border;
-            if (dot != null)
-            {
-                Point position = e.GetPosition(slider);
-                double percentage = position.X / slider.ActualWidth;
-                percentage = Math.Max(0, Math.Min(1, percentage));
-
-                double previewValue = percentage * slider.Maximum;
-
-                // 更新预览点位置
-                dot.Margin = new Thickness(position.X - dot.Width / 2, 0, 0, 0);
-                dot.Opacity = 1;
-            }
-        }
-
-        private void HidePreviewDot(Slider slider)
-        {
-            if (slider == null) return;
-
-            var dot = slider.Template.FindName("PreviewDot", slider) as Border;
-            if (dot != null)
-            {
-                dot.Opacity = 0;
-            }
-        }
-
-        // 修复全屏进度条拖动问题 - 只保留这一个实现
-        private void FullscreenProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = true;
-            if (isPlaying)
-            {
-                MediaPlayer.Pause();
-            }
-
-            // 立即更新进度条位置
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                Point position = e.GetPosition(FullscreenProgressSlider);
-                double percentage = position.X / FullscreenProgressSlider.ActualWidth;
-                percentage = Math.Max(0, Math.Min(1, percentage));
-
-                double newValue = percentage * FullscreenProgressSlider.Maximum;
-                FullscreenProgressSlider.Value = newValue;
-                MediaPlayer.Position = TimeSpan.FromSeconds(newValue);
-                UpdateFullscreenTimeDisplay();
-            }
-        }
-
-        private void FullscreenProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = false;
-            if (MediaPlayer.Source != null && isPlaying)
-            {
-                MediaPlayer.Play();
-            }
-
-            // 拖动结束后保存播放进度
-            if (!string.IsNullOrEmpty(currentVideoPath) && MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                recordManager.UpdateRecord(currentVideoPath, MediaPlayer.Position.TotalSeconds);
-
-                // 同时更新播放状态
-                if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
-                {
-                    recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, MediaPlayer.Position.TotalSeconds);
-                }
-            }
-        }
-
-        // 修复普通进度条拖动问题 - 只保留这一个实现
-        private void NormalProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = true;
-            if (isPlaying)
-            {
-                MediaPlayer.Pause();
-            }
-
-            // 立即更新进度条位置
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                Point position = e.GetPosition(NormalProgressSlider);
-                double percentage = position.X / NormalProgressSlider.ActualWidth;
-                percentage = Math.Max(0, Math.Min(1, percentage));
-
-                double newValue = percentage * NormalProgressSlider.Maximum;
-                NormalProgressSlider.Value = newValue;
-                MediaPlayer.Position = TimeSpan.FromSeconds(newValue);
-                UpdateNormalTimeDisplay();
-            }
-        }
-
-        private void NormalProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = false;
-            if (MediaPlayer.Source != null && isPlaying)
-            {
-                MediaPlayer.Play();
-            }
-
-            // 拖动结束后保存播放进度
-            if (!string.IsNullOrEmpty(currentVideoPath) && MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                recordManager.UpdateRecord(currentVideoPath, MediaPlayer.Position.TotalSeconds);
-
-                // 同时更新播放状态
-                if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
-                {
-                    recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, MediaPlayer.Position.TotalSeconds);
-                }
-            }
-        }
-
-        // 修复主进度条拖动问题 - 只保留这一个实现
-        private void ProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = true;
-            if (isPlaying)
-            {
-                MediaPlayer.Pause();
-            }
-
-            // 立即更新进度条位置
-            if (MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                Point position = e.GetPosition(ProgressSlider);
-                double percentage = position.X / ProgressSlider.ActualWidth;
-                percentage = Math.Max(0, Math.Min(1, percentage));
-
-                double newValue = percentage * ProgressSlider.Maximum;
-                ProgressSlider.Value = newValue;
-                MediaPlayer.Position = TimeSpan.FromSeconds(newValue);
-                UpdateTimeDisplay();
-            }
-        }
-
-        private void ProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            isDraggingProgress = false;
-            if (MediaPlayer.Source != null && isPlaying)
-            {
-                MediaPlayer.Play();
-            }
-
-            // 拖动结束后保存播放进度
-            if (!string.IsNullOrEmpty(currentVideoPath) && MediaPlayer.NaturalDuration.HasTimeSpan)
-            {
-                recordManager.UpdateRecord(currentVideoPath, MediaPlayer.Position.TotalSeconds);
-
-                // 同时更新播放状态
-                if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
-                {
-                    recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, MediaPlayer.Position.TotalSeconds);
-                }
+                UpdateProgressDisplay(); // 更新进度条视觉显示
             }
         }
 
@@ -948,6 +795,7 @@ namespace Attack
             }
         }
 
+        // 修改现有的 LoadVideoFile 方法，调用新的记忆播放版本
         private void LoadVideoFile(string filePath)
         {
             LoadVideoFileWithMemory(filePath);
@@ -1030,6 +878,7 @@ namespace Attack
             StatusOverlay.Visibility = Visibility.Collapsed;
         }
 
+        // 事件处理程序
         private void MediaPlayer_MediaOpened(object sender, RoutedEventArgs e)
         {
             HideStatus();
@@ -1103,6 +952,7 @@ namespace Attack
             }
         }
 
+        // 清除记忆播放记录
         private void ClearMemoryButton_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show("确定要清除所有播放记录和记忆播放状态吗？", "清除播放记录",
@@ -1124,6 +974,7 @@ namespace Attack
             }
         }
 
+        // 控制按钮事件
         private void OpenFileButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
@@ -1199,6 +1050,7 @@ namespace Attack
             }
         }
 
+        // 进度条事件处理
         private void ProgressSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!MediaPlayer.NaturalDuration.HasTimeSpan) return;
@@ -1209,6 +1061,37 @@ namespace Attack
                 UpdateTimeDisplay();
                 UpdateProgressDisplay();
             }
+        }
+
+        private void ProgressSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 点击进度条时也更新位置
+            var position = e.GetPosition(ProgressSlider);
+            var newValue = (position.X / ProgressSlider.ActualWidth) * ProgressSlider.Maximum;
+            ProgressSlider.Value = newValue;
+
+            if (MediaPlayer.NaturalDuration.HasTimeSpan)
+            {
+                MediaPlayer.Position = TimeSpan.FromSeconds(newValue);
+                UpdateProgressDisplay();
+
+                // 点击跳转后保存播放进度
+                if (!string.IsNullOrEmpty(currentVideoPath))
+                {
+                    recordManager.UpdateRecord(currentVideoPath, newValue);
+
+                    // 同时更新播放状态
+                    if (MemoryPlaybackCheckBox.IsChecked == true && !string.IsNullOrEmpty(currentFolderPath))
+                    {
+                        recordManager.UpdatePlaybackState(currentFolderPath, currentVideoPath, newValue);
+                    }
+                }
+            }
+        }
+
+        private void ProgressSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // 不需要额外处理
         }
 
         private void SpeedComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1229,6 +1112,7 @@ namespace Attack
                 }
 
                 // 更新按钮文本
+                NormalSpeedButton.Content = speedOptions[currentSpeedIndex];
                 FullscreenSpeedButton.Content = speedOptions[currentSpeedIndex];
             }
         }
@@ -1269,6 +1153,7 @@ namespace Attack
             }
         }
 
+        // 窗口控制
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left && e.ClickCount == 2)
@@ -1281,6 +1166,7 @@ namespace Attack
             }
         }
 
+        // 键盘快捷键处理
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.Key)
@@ -1320,6 +1206,25 @@ namespace Attack
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
+        }
+
+        // 新增事件处理方法
+        private void ProgressSlider_MouseEnter(object sender, MouseEventArgs e)
+        {
+            var thumb = ProgressSlider.Template.FindName("Thumb", ProgressSlider) as Thumb;
+            if (thumb != null)
+            {
+                thumb.Opacity = 1;
+            }
+        }
+
+        private void ProgressSlider_MouseLeave(object sender, MouseEventArgs e)
+        {
+            var thumb = ProgressSlider.Template.FindName("Thumb", ProgressSlider) as Thumb;
+            if (thumb != null && !thumb.IsMouseOver)
+            {
+                thumb.Opacity = 0;
+            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
